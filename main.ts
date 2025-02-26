@@ -27,10 +27,10 @@ export default class MyPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 		this.addSettingTab(new MyPluginSettingTab(this.app, this));
-		
+
 		// Initialize the audio cache
 		this.audioCache = new AudioCache(this.app);
-		
+
 		// Configure the audio cache based on settings
 		this.audioCache.setEnabled(this.settings.enablePersistentCache);
 		this.audioCache.setMaxCacheSize(this.settings.maxCacheSize);
@@ -45,18 +45,18 @@ export default class MyPlugin extends Plugin {
 				// Check if we're switching to our audio control view
 				const viewType = leaf?.view?.getViewType();
 				const isAudioControlView = viewType === VIEW_TYPE_AUDIO_CONTROL;
-				
+
 				// If we're switching to the audio control view, don't pause any audio
 				if (isAudioControlView) {
 					// Just update the audio control view
 					this.updateAudioControlView();
 					return;
 				}
-				
+
 				// Get the current active document
 				const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 				const currentDocId = activeView?.file?.path || null;
-				
+
 				// Pause any playing audio in documents that are not the current one
 				this.documentStates.forEach((state, docId) => {
 					if (docId !== currentDocId && state.state === PluginState.Playing) {
@@ -70,10 +70,10 @@ export default class MyPlugin extends Plugin {
 						this.documentStates.set(docId, state);
 					}
 				});
-				
+
 				// Update the audio control view
 				this.updateAudioControlView();
-				
+
 				// Add play buttons to the active view
 				if (activeView) {
 					this.addPlayButtonsToActiveView();
@@ -107,7 +107,7 @@ export default class MyPlugin extends Plugin {
 				}
 			})
 		);
-		
+
 		// Register event for view mode changes (switching between source and reading mode)
 		this.registerEvent(
 			this.app.workspace.on('layout-change', () => {
@@ -229,7 +229,7 @@ export default class MyPlugin extends Plugin {
 				});
 			})
 		);
-		
+
 		// Add play buttons to the current active view if there is one
 		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (activeView) {
@@ -260,7 +260,7 @@ export default class MyPlugin extends Plugin {
 		if (activeView && activeView.getMode() !== 'source') {
 			this.clearReadingModeHighlights(activeView);
 		}
-		
+
 		// Remove all play buttons
 		document.querySelectorAll('.sentence-play-button').forEach(el => el.remove());
 	}
@@ -307,21 +307,21 @@ export default class MyPlugin extends Plugin {
 			currentDocState.state = PluginState.Generating;
 			this.documentStates.set(docId, currentDocState);
 			new Notice('Preparing speech...');
-			
+
 			// Split text into sentences but don't generate audio for all of them yet
 			const sentences = this.splitIntoSentences(text);
-			
+
 			// Initialize the document state with sentences and null audio elements
 			currentDocState.sentences = sentences;
 			currentDocState.audioElements = Array(sentences.length).fill(null);
 			currentDocState.currentIndex = 0;
 			currentDocState.state = PluginState.Idle;
-			
+
 			this.documentStates.set(docId, currentDocState);
-			
+
 			// Add play buttons to sentences
 			this.addPlayButtonsToActiveView();
-			
+
 			// Start playing from the beginning
 			this.playSentencesSequentially(docId);
 			this.openAudioControlView();
@@ -345,16 +345,16 @@ export default class MyPlugin extends Plugin {
 			new Notice('No active Markdown view found.');
 			return;
 		}
-		
+
 		const docId = activeView.file.path;
 		let docState = this.documentStates.get(docId);
-		
+
 		// If there's already a document state and it's busy, don't interrupt
 		if (docState && (docState.state === PluginState.Generating || docState.state === PluginState.Playing)) {
 			new Notice('Please wait for the current operation to finish.');
 			return;
 		}
-		
+
 		// Check API keys
 		if (this.settings.ttsProvider === TTSProvider.ELEVEN_LABS && !this.settings.elevenLabsApiKey) {
 			new Notice('Please set your ElevenLabs API key in the settings.');
@@ -365,7 +365,7 @@ export default class MyPlugin extends Plugin {
 			new Notice('Please set your Unreal Speech API key in the settings.');
 			return;
 		}
-		
+
 		try {
 			// If no document state exists yet, create one
 			if (!docState) {
@@ -377,28 +377,28 @@ export default class MyPlugin extends Plugin {
 					isLoading: false
 				};
 			}
-			
+
 			// Set state to generating
 			docState.state = PluginState.Generating;
 			this.documentStates.set(docId, docState);
 			new Notice('Preparing speech for paragraph...');
-			
+
 			// Split paragraph into sentences
 			const paragraphSentences = this.splitIntoSentences(paragraphText);
-			
+
 			// If we already have sentences in the document state, we need to find where to insert these
 			if (docState.sentences.length > 0) {
 				// Find the first sentence of the paragraph in the existing sentences
 				const firstSentence = paragraphSentences[0];
 				let startIndex = -1;
-				
+
 				for (let i = 0; i < docState.sentences.length; i++) {
 					if (docState.sentences[i].includes(firstSentence) || firstSentence.includes(docState.sentences[i])) {
 						startIndex = i;
 						break;
 					}
 				}
-				
+
 				// If we found the paragraph in the existing sentences, start playback from there
 				if (startIndex >= 0) {
 					docState.state = PluginState.Idle;
@@ -406,7 +406,7 @@ export default class MyPlugin extends Plugin {
 					this.startPlaybackFromIndex(docId, startIndex);
 					return;
 				}
-				
+
 				// If we didn't find the paragraph, append it to the existing sentences
 				const currentLength = docState.sentences.length;
 				docState.sentences = [...docState.sentences, ...paragraphSentences];
@@ -418,14 +418,14 @@ export default class MyPlugin extends Plugin {
 				docState.audioElements = Array(paragraphSentences.length).fill(null);
 				docState.currentIndex = 0;
 			}
-			
+
 			// Set state back to idle before starting playback
 			docState.state = PluginState.Idle;
 			this.documentStates.set(docId, docState);
-			
+
 			// Open the audio control view
 			this.openAudioControlView();
-			
+
 			// Start playing from the current index
 			this.playSentencesSequentially(docId);
 		} catch (error) {
@@ -488,15 +488,17 @@ export default class MyPlugin extends Plugin {
 
 			editor.setSelection(startPos, endPos);
 			editor.scrollIntoView({ from: startPos, to: endPos }, true);
-			
+
 			// Make sure play buttons are added
+			// FIXME: disabled - trigger too many times
 			this.addPlayButtonsToSourceMode(activeView);
 		} else {
 			// Reading mode - use DOM manipulation to highlight the text
 			this.highlightSentenceInReadingMode(activeView, currentSentence);
-			
+
 			// Make sure play buttons are added
-			this.addPlayButtonsToReadingMode(activeView);
+			// FIXME: disabled - trigger too many times
+			// this.addPlayButtonsToReadingMode(activeView);
 		}
 	}
 
@@ -534,21 +536,21 @@ export default class MyPlugin extends Plugin {
 		while ((node = walker.nextNode()) && !found) {
 			const textContent = node.textContent || '';
 			const index = textContent.indexOf(cleanedSentence);
-			
+
 			if (index !== -1) {
 				// Split the text node into three parts: before, highlight, after
 				const beforeText = textContent.substring(0, index);
 				const highlightText = textContent.substring(index, index + cleanedSentence.length);
 				const afterText = textContent.substring(index + cleanedSentence.length);
-				
+
 				const parentNode = node.parentNode;
 				if (!parentNode) continue;
-				
+
 				// Create text node for content before the sentence
 				if (beforeText) {
 					parentNode.insertBefore(document.createTextNode(beforeText), node);
 				}
-				
+
 				// Create highlighted span for the sentence
 				const highlightSpan = document.createElement('span');
 				highlightSpan.className = 'sentence-highlight';
@@ -556,81 +558,140 @@ export default class MyPlugin extends Plugin {
 				highlightSpan.style.backgroundColor = 'rgba(255, 255, 0, 0.3)';
 				highlightSpan.style.borderRadius = '3px';
 				parentNode.insertBefore(highlightSpan, node);
-				
+
 				// Create text node for content after the sentence
 				if (afterText) {
 					parentNode.insertBefore(document.createTextNode(afterText), node);
 				}
-				
+
 				// Remove the original text node
 				parentNode.removeChild(node);
-				
+
 				// Scroll the highlighted element into view
 				highlightSpan.scrollIntoView({ behavior: 'smooth', block: 'center' });
-				
+
 				found = true;
 			}
 		}
 	}
 
-	// Add play buttons to all sentences in reading mode
+	/**
+	 * Adds play buttons to all sentences in reading mode.
+	 * First, removes any existing play buttons and then
+	 * iterates through all text elements in the preview mode container
+	 * to find and add play buttons to each sentence.
+	 * 
+	 * @param view - The Markdown view instance
+	 */
 	addPlayButtonsToReadingMode(view: MarkdownView) {
 		const previewEl = view.previewMode.containerEl.querySelector('.markdown-preview-view');
 		if (!previewEl) return;
-		
+
 		// Remove any existing play buttons
 		const existingButtons = previewEl.querySelectorAll('.sentence-play-button');
 		existingButtons.forEach(el => el.remove());
-		
+
 		// Get the document ID
 		const docId = view.file?.path;
 		if (!docId) return;
-		
+
 		// Find all paragraphs, list items, and headings
 		const textElements = previewEl.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6');
-		
+
 		// Get the document state if it exists
 		const docState = this.documentStates.get(docId);
-		
+
 		textElements.forEach(element => {
 			// Get the text content
 			const text = element.textContent || '';
 			if (!text.trim()) return; // Skip empty elements
-			
+			console.log('text ', text);
+
 			// Create play button
 			const playButton = document.createElement('button');
 			playButton.className = 'sentence-play-button';
 			playButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
 			playButton.setAttribute('aria-label', 'Play this paragraph');
 			
+
 			// If we have a document state with sentences, try to find the first sentence index
 			if (docState && docState.sentences.length > 0) {
 				// Find the first sentence in this element
 				let firstSentenceIndex = -1;
-				
+
 				for (let i = 0; i < docState.sentences.length; i++) {
 					const sentence = docState.sentences[i];
 					const cleanedSentence = cleanSentence(sentence);
-					
+
 					if (cleanedSentence && text.includes(cleanedSentence)) {
 						firstSentenceIndex = i;
 						break;
 					}
 				}
-				
+
 				// If we found a sentence, set the index and use startPlaybackFromIndex
 				if (firstSentenceIndex !== -1) {
+					console.log('sentence found');
 					playButton.setAttribute('data-sentence-index', firstSentenceIndex.toString());
+					
+					// Check if this sentence is currently playing and set the appropriate class and icon
+					if (docState.state === PluginState.Playing && docState.currentIndex === firstSentenceIndex) {
+						playButton.classList.add('playing');
+						playButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+						playButton.setAttribute('aria-label', 'Pause');
+					} else if (docState.state === PluginState.Paused && docState.currentIndex === firstSentenceIndex) {
+						playButton.classList.add('paused');
+						playButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+						playButton.setAttribute('aria-label', 'Resume');
+					}
+					
 					playButton.onclick = (e) => {
 						e.preventDefault();
 						e.stopPropagation();
-						this.startPlaybackFromIndex(docId, firstSentenceIndex);
+						
+						// If this sentence is already playing, pause it
+						if (docState.state === PluginState.Playing && docState.currentIndex === firstSentenceIndex) {
+							playButton.classList.remove('playing');
+							playButton.classList.add('paused');
+							playButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+							playButton.setAttribute('aria-label', 'Resume');
+							this.pauseAllPlayback();
+						} else {
+							// Otherwise start playing from this sentence
+							// Update all buttons to remove playing/paused classes
+							previewEl.querySelectorAll('.sentence-play-button').forEach(btn => {
+								btn.classList.remove('playing', 'paused');
+								btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+								btn.setAttribute('aria-label', 'Play this paragraph');
+							});
+							
+							// Set this button to playing
+							playButton.classList.add('playing');
+							playButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+							playButton.setAttribute('aria-label', 'Pause');
+							
+							this.startPlaybackFromIndex(docId, firstSentenceIndex);
+						}
 					};
 				} else {
+					console.log('no sentence found');
 					// If no sentence found, generate speech for this paragraph
 					playButton.onclick = (e) => {
 						e.preventDefault();
 						e.stopPropagation();
+						
+						// Update all buttons to remove playing/paused classes
+						previewEl.querySelectorAll('.sentence-play-button').forEach(btn => {
+							btn.classList.remove('playing', 'paused');
+							btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+							btn.setAttribute('aria-label', 'Play this paragraph');
+						});
+						
+						// Set this button to playing
+						playButton.classList.add('playing');
+						playButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+						playButton.setAttribute('aria-label', 'Pause');
+						
 						this.generateAndPlayParagraph(text);
 					};
 				}
@@ -639,10 +700,23 @@ export default class MyPlugin extends Plugin {
 				playButton.onclick = (e) => {
 					e.preventDefault();
 					e.stopPropagation();
+					
+					// Update all buttons to remove playing/paused classes
+					previewEl.querySelectorAll('.sentence-play-button').forEach(btn => {
+						btn.classList.remove('playing', 'paused');
+						btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+						btn.setAttribute('aria-label', 'Play this paragraph');
+					});
+					
+					// Set this button to playing
+					playButton.classList.add('playing');
+					playButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+					playButton.setAttribute('aria-label', 'Pause');
+					
 					this.generateAndPlayParagraph(text);
 				};
 			}
-			
+
 			// Add the button directly to the paragraph element
 			element.appendChild(playButton);
 		});
@@ -653,64 +727,64 @@ export default class MyPlugin extends Plugin {
 		const editor = view.editor;
 		const docId = view.file?.path;
 		if (!docId) return;
-		
+
 		// Get the editor container
 		const editorContainer = view.containerEl.querySelector('.cm-editor');
 		if (!editorContainer) return;
-		
+
 		// Remove any existing play buttons
 		const existingButtons = editorContainer.querySelectorAll('.sentence-play-button');
 		existingButtons.forEach(el => el.remove());
-		
+
 		// Get the text content
 		const text = editor.getValue();
-		
+
 		// Get the document state if it exists
 		const docState = this.documentStates.get(docId);
-		
+
 		// Find paragraphs in the text (separated by empty lines)
 		const paragraphs = text.split(/\n\s*\n/);
 		let offset = 0;
-		
+
 		paragraphs.forEach(paragraph => {
 			if (!paragraph.trim()) {
 				// Update offset for empty paragraphs
 				offset += paragraph.length + 2; // +2 for the newlines
 				return;
 			}
-			
+
 			// Calculate the absolute position in the document for the start of the paragraph
 			const absoluteOffset = offset;
 			const startPos = editor.offsetToPos(absoluteOffset);
-			
+
 			// Find the line element in the DOM
 			const lineElement = editorContainer.querySelector(`.cm-line:nth-child(${startPos.line + 1})`);
 			if (!lineElement) {
 				offset += paragraph.length + 2; // +2 for the newlines
 				return;
 			}
-			
+
 			// Create play button
 			const playButton = document.createElement('button');
 			playButton.className = 'sentence-play-button';
 			playButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
 			playButton.setAttribute('aria-label', 'Play this paragraph');
-			
+
 			// If we have a document state with sentences, try to find the first sentence index
 			if (docState && docState.sentences.length > 0) {
 				// Find the first sentence in this paragraph
 				let firstSentenceIndex = -1;
-				
+
 				for (let i = 0; i < docState.sentences.length; i++) {
 					const sentence = docState.sentences[i];
 					const cleanedSentence = cleanSentence(sentence);
-					
+
 					if (cleanedSentence && paragraph.includes(cleanedSentence)) {
 						firstSentenceIndex = i;
 						break;
 					}
 				}
-				
+
 				// If we found a sentence, set the index and use startPlaybackFromIndex
 				if (firstSentenceIndex !== -1) {
 					playButton.setAttribute('data-sentence-index', firstSentenceIndex.toString());
@@ -735,20 +809,22 @@ export default class MyPlugin extends Plugin {
 					this.generateAndPlayParagraph(paragraph);
 				};
 			}
-			
+
 			// Add the button to the line element
 			lineElement.appendChild(playButton);
-			
+
 			// Update offset for the next paragraph
 			offset += paragraph.length + 2; // +2 for the newlines
 		});
 	}
 
-	// Add play buttons to the active view
+	/**
+	 * Adds play buttons to the active view accordingly to the source or preview mode.
+	 */
 	addPlayButtonsToActiveView() {
 		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (!activeView) return;
-		
+
 		// Check if we're in editing mode or reading mode
 		if (activeView.getMode() === 'source') {
 			this.addPlayButtonsToSourceMode(activeView);
@@ -757,6 +833,10 @@ export default class MyPlugin extends Plugin {
 		}
 	}
 
+	/**
+	 * Play the sentences sequentially. 
+	 * @param docId - The ID of the document to play
+	 */
 	playSentencesSequentially(docId: string) {
 		const docState = this.documentStates.get(docId);
 		if (!docState || docState.state !== PluginState.Idle) {
@@ -765,10 +845,10 @@ export default class MyPlugin extends Plugin {
 
 		docState.state = PluginState.Playing;
 		this.documentStates.set(docId, docState);
-		
+
 		// Highlight the current sentence before starting playback
 		this.highlightCurrentSentence(docId);
-		
+
 		// Start playing from the current index
 		this.playNextSentence(docId);
 	}
@@ -810,7 +890,7 @@ export default class MyPlugin extends Plugin {
 		try {
 			const sentence = docState.sentences[index];
 			let audioBlob: Blob;
-			
+
 			// Check if persistent cache is enabled and the audio is in the cache
 			if (this.settings.enablePersistentCache && this.audioCache.hasAudio(sentence, docId)) {
 				// Use the cached audio blob
@@ -820,7 +900,7 @@ export default class MyPlugin extends Plugin {
 				} else {
 					// Generate speech for this sentence
 					audioBlob = await generateSpeech(sentence, this.settings.ttsProvider, this.settings);
-					
+
 					// Store in persistent cache if enabled
 					if (this.settings.enablePersistentCache) {
 						await this.audioCache.storeAudio(sentence, docId, audioBlob);
@@ -829,20 +909,20 @@ export default class MyPlugin extends Plugin {
 			} else {
 				// Generate speech for this sentence
 				audioBlob = await generateSpeech(sentence, this.settings.ttsProvider, this.settings);
-				
+
 				// Store in persistent cache if enabled
 				if (this.settings.enablePersistentCache) {
 					await this.audioCache.storeAudio(sentence, docId, audioBlob);
 				}
 			}
-			
+
 			// Create audio element
 			const audio = new Audio(URL.createObjectURL(audioBlob));
-			
+
 			// Store in document state (in-memory cache)
 			docState.audioElements[index] = audio;
 			this.documentStates.set(docId, docState);
-			
+
 			return audio;
 		} catch (error) {
 			console.error(`Error loading audio for sentence ${index}:`, error);
@@ -859,13 +939,30 @@ export default class MyPlugin extends Plugin {
 		for (let i = 1; i <= count; i++) {
 			const nextIndex = currentIndex + i;
 			if (nextIndex < docState.sentences.length && !docState.audioElements[nextIndex]) {
-				this.loadAudioForSentence(docId, nextIndex).catch(err => 
+				this.loadAudioForSentence(docId, nextIndex).catch(err =>
 					console.error(`Error preloading sentence ${nextIndex}:`, err)
 				);
 			}
 		}
 	}
 
+	/**
+	 /**
+	 * Plays the next sentence in the document's audio playback sequence.
+	 * This function checks the current document state to ensure that playback
+	 * is active. If the end of the sentence list is reached, it updates the
+	 * document state to idle and clears any highlights or selections in the
+	 * active view. 
+	 * 
+	 * If the current sentence is not yet loaded, it shows a
+	 * loading indicator and attempts to load the audio for the current sentence.
+	 * 
+	 * Once the audio is loaded, it plays the audio and sets up event handlers
+	 * to manage playback progression.
+	 * 
+	 * @param docId - The ID of the document to play. This is used to retrieve
+	 * the document's state and audio elements.
+	 */
 	async playNextSentence(docId: string) {
 		const docState = this.documentStates.get(docId);
 		if (!docState || docState.state !== PluginState.Playing) {
@@ -873,13 +970,13 @@ export default class MyPlugin extends Plugin {
 		}
 
 		const index = docState.currentIndex;
-		
+
 		// Check if we've reached the end
 		if (index >= docState.sentences.length) {
 			docState.state = PluginState.Idle;
 			this.documentStates.set(docId, docState);
 			this.updateAudioControlView();
-			
+
 			// Clear selection/highlighting when finished
 			const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 			if (activeView) {
@@ -889,6 +986,17 @@ export default class MyPlugin extends Plugin {
 				} else {
 					// Clear highlighting in reading mode
 					this.clearReadingModeHighlights(activeView);
+					
+					// Reset all play buttons
+					const previewEl = activeView.previewMode.containerEl.querySelector('.markdown-preview-view');
+					if (previewEl) {
+						const buttons = previewEl.querySelectorAll('.sentence-play-button');
+						buttons.forEach(button => {
+							button.classList.remove('playing', 'paused');
+							button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+							button.setAttribute('aria-label', 'Play this paragraph');
+						});
+					}
 				}
 			}
 			return;
@@ -904,7 +1012,7 @@ export default class MyPlugin extends Plugin {
 
 		// Load the audio for the current sentence
 		const audio = await this.loadAudioForSentence(docId, index);
-		
+
 		// Hide loading indicator
 		docState.isLoading = false;
 		this.documentStates.set(docId, docState);
@@ -920,6 +1028,35 @@ export default class MyPlugin extends Plugin {
 
 		// Preload the next few sentences in the background
 		this.preloadUpcomingSentences(docId, index);
+
+		// Update play button states in the active view
+		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (activeView && activeView.file && activeView.file.path === docId) {
+			if (activeView.getMode() !== 'source') {
+				// In reading mode, update the button states
+				const previewEl = activeView.previewMode.containerEl.querySelector('.markdown-preview-view');
+				if (previewEl) {
+					// Reset all buttons first
+					const buttons = previewEl.querySelectorAll('.sentence-play-button');
+					buttons.forEach(button => {
+						button.classList.remove('playing', 'paused');
+						button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+						button.setAttribute('aria-label', 'Play this paragraph');
+					});
+					
+					// Find the button for the current sentence and update it
+					buttons.forEach(button => {
+						const sentenceIndex = button.getAttribute('data-sentence-index');
+						if (sentenceIndex && parseInt(sentenceIndex) === index) {
+							// Update this button to playing state
+							button.classList.add('playing');
+							button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+							button.setAttribute('aria-label', 'Pause');
+						}
+					});
+				}
+			}
+		}
 
 		// Set up event handlers
 		audio.ontimeupdate = () => {
@@ -989,41 +1126,41 @@ export default class MyPlugin extends Plugin {
 			new Notice('No active Markdown view found.');
 			return;
 		}
-		
+
 		const docId = activeView.file.path;
 		const docState = this.documentStates.get(docId);
-		
+
 		// If no speech has been generated yet, generate it for the entire document
 		if (!docState || docState.sentences.length === 0) {
 			const text = editor.getValue();
 			await this.generateAndPlaySpeech(text);
 			return;
 		}
-		
+
 		// Find the sentence that contains the cursor
 		const cursorPos = editor.getCursor();
 		const cursorOffset = editor.posToOffset(cursorPos);
 		const text = editor.getValue();
-		
+
 		// Find which sentence contains the cursor
 		let sentenceIndex = 0;
-		
+
 		for (let i = 0; i < docState.sentences.length; i++) {
 			const sentence = docState.sentences[i];
 			const position = this.findSentencePosition(text, sentence);
-			
+
 			if (position && cursorOffset >= position.start && cursorOffset <= position.end) {
 				sentenceIndex = i;
 				break;
 			}
-			
+
 			if (position && position.start > cursorOffset) {
 				break;
 			}
-			
+
 			sentenceIndex = i;
 		}
-		
+
 		// Start playback from this sentence
 		this.startPlaybackFromIndex(docId, sentenceIndex);
 		new Notice(`Starting playback from sentence ${sentenceIndex + 1}`);
@@ -1031,7 +1168,7 @@ export default class MyPlugin extends Plugin {
 
 	pauseAllPlayback() {
 		let pausedAny = false;
-		
+
 		this.documentStates.forEach((state, docId) => {
 			if (state.state === PluginState.Playing) {
 				// Pause the current audio
@@ -1039,21 +1176,44 @@ export default class MyPlugin extends Plugin {
 				if (currentAudio) {
 					currentAudio.pause();
 				}
-				
+
 				// Update the state
 				state.state = PluginState.Paused;
 				this.documentStates.set(docId, state);
 				pausedAny = true;
-				
+
 				// Keep the current sentence highlighted when paused
 				this.highlightCurrentSentence(docId);
+				
+				// Update play button states in the active view
+				const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (activeView && activeView.file && activeView.file.path === docId) {
+					if (activeView.getMode() !== 'source') {
+						// In reading mode, update the button states
+						const previewEl = activeView.previewMode.containerEl.querySelector('.markdown-preview-view');
+						if (previewEl) {
+							// Find the button for the current sentence
+							const buttons = previewEl.querySelectorAll('.sentence-play-button');
+							buttons.forEach(button => {
+								const sentenceIndex = button.getAttribute('data-sentence-index');
+								if (sentenceIndex && parseInt(sentenceIndex) === state.currentIndex) {
+									// Update this button to paused state
+									button.classList.remove('playing');
+									button.classList.add('paused');
+									button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+									button.setAttribute('aria-label', 'Resume');
+								}
+							});
+						}
+					}
+				}
 			}
 		});
-		
+
 		if (pausedAny) {
 			new Notice('Playback paused');
 		}
-		
+
 		this.updateAudioControlView();
 	}
 

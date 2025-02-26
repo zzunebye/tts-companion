@@ -169,8 +169,27 @@ If your plugin does not need CSS, delete this file.
 
 .markdown-preview-view .sentence-play-button {
     display: inline-flex;
-    opacity: 0.7;
+    opacity: 0;  /* Hide by default */
     left: -28px;
+    transition: opacity 0.2s ease;  /* Smooth transition for opacity */
+}
+
+/* Show play button on hover */
+.markdown-preview-view p:hover .sentence-play-button,
+.markdown-preview-view li:hover .sentence-play-button,
+.markdown-preview-view h1:hover .sentence-play-button,
+.markdown-preview-view h2:hover .sentence-play-button,
+.markdown-preview-view h3:hover .sentence-play-button,
+.markdown-preview-view h4:hover .sentence-play-button,
+.markdown-preview-view h5:hover .sentence-play-button,
+.markdown-preview-view h6:hover .sentence-play-button {
+    opacity: 0.7;
+}
+
+/* Keep button visible when it's in playing or paused state */
+.markdown-preview-view .sentence-play-button.playing,
+.markdown-preview-view .sentence-play-button.paused {
+    opacity: 0.7;
 }
 
 /* Cache progress bar styles */
