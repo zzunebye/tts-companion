@@ -322,7 +322,7 @@ export default class MyPlugin extends Plugin {
 			// Add play buttons to sentences
 			this.addPlayButtonsToActiveView();
 
-			// Start playing from the beginning
+			// Start playing from the beginning and continue through all sentences
 			this.playSentencesSequentially(docId);
 			this.openAudioControlView();
 		} catch (error) {
@@ -426,7 +426,7 @@ export default class MyPlugin extends Plugin {
 			// Open the audio control view
 			this.openAudioControlView();
 
-			// Start playing from the current index
+			// Start playing from the current index and continue through all sentences
 			this.playSentencesSequentially(docId);
 		} catch (error) {
 			new Notice(`Error preparing speech: ${error.message}`);
@@ -670,12 +670,13 @@ export default class MyPlugin extends Plugin {
 							playButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
 							playButton.setAttribute('aria-label', 'Pause');
 							
+							// Start playback from this index and continue through all sentences
 							this.startPlaybackFromIndex(docId, firstSentenceIndex);
 						}
 					};
 				} else {
 					console.log('no sentence found');
-					// If no sentence found, generate speech for this paragraph
+					// If no sentence found, generate speech for this paragraph and continue with subsequent paragraphs
 					playButton.onclick = (e) => {
 						e.preventDefault();
 						e.stopPropagation();
@@ -692,11 +693,12 @@ export default class MyPlugin extends Plugin {
 						playButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
 						playButton.setAttribute('aria-label', 'Pause');
 						
+						// Generate speech for this paragraph and continue with subsequent paragraphs
 						this.generateAndPlayParagraph(text);
 					};
 				}
 			} else {
-				// If no document state or no sentences, generate speech for this paragraph
+				// If no document state or no sentences, generate speech for this paragraph and continue with subsequent paragraphs
 				playButton.onclick = (e) => {
 					e.preventDefault();
 					e.stopPropagation();
@@ -713,6 +715,7 @@ export default class MyPlugin extends Plugin {
 					playButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
 					playButton.setAttribute('aria-label', 'Pause');
 					
+					// Generate speech for this paragraph and continue with subsequent paragraphs
 					this.generateAndPlayParagraph(text);
 				};
 			}
@@ -788,13 +791,32 @@ export default class MyPlugin extends Plugin {
 				// If we found a sentence, set the index and use startPlaybackFromIndex
 				if (firstSentenceIndex !== -1) {
 					playButton.setAttribute('data-sentence-index', firstSentenceIndex.toString());
+					
+					// Check if this sentence is currently playing and set the appropriate class and icon
+					if (docState.state === PluginState.Playing && docState.currentIndex === firstSentenceIndex) {
+						playButton.classList.add('playing');
+						playButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+						playButton.setAttribute('aria-label', 'Pause');
+					} else if (docState.state === PluginState.Paused && docState.currentIndex === firstSentenceIndex) {
+						playButton.classList.add('paused');
+						playButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+						playButton.setAttribute('aria-label', 'Resume');
+					}
+					
 					playButton.onclick = (e) => {
 						e.preventDefault();
 						e.stopPropagation();
-						this.startPlaybackFromIndex(docId, firstSentenceIndex);
+						
+						// If this sentence is already playing, pause it
+						if (docState.state === PluginState.Playing && docState.currentIndex === firstSentenceIndex) {
+							this.pauseAllPlayback();
+						} else {
+							// Start playback from this index and continue through all subsequent sentences
+							this.startPlaybackFromIndex(docId, firstSentenceIndex);
+						}
 					};
 				} else {
-					// If no sentence found, generate speech for this paragraph
+					// If no sentence found, generate speech for this paragraph and continue with subsequent paragraphs
 					playButton.onclick = (e) => {
 						e.preventDefault();
 						e.stopPropagation();
@@ -802,7 +824,7 @@ export default class MyPlugin extends Plugin {
 					};
 				}
 			} else {
-				// If no document state or no sentences, generate speech for this paragraph
+				// If no document state or no sentences, generate speech for this paragraph and continue with subsequent paragraphs
 				playButton.onclick = (e) => {
 					e.preventDefault();
 					e.stopPropagation();
@@ -947,7 +969,6 @@ export default class MyPlugin extends Plugin {
 	}
 
 	/**
-	 /**
 	 * Plays the next sentence in the document's audio playback sequence.
 	 * This function checks the current document state to ensure that playback
 	 * is active. If the end of the sentence list is reached, it updates the
@@ -1115,7 +1136,7 @@ export default class MyPlugin extends Plugin {
 		// Highlight the current sentence before starting playback
 		this.highlightCurrentSentence(docId);
 
-		// Start playing from this index
+		// Start playing from this index and continue through all subsequent sentences
 		this.playSentencesSequentially(docId);
 	}
 
