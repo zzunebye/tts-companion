@@ -42,7 +42,7 @@ export class AudioControlView extends ItemView {
 
         // Calculate current position
         let currentPosition = 0;
-        
+
         // If playback is complete, set position to total duration
         if (docState.currentIndex >= docState.sentences.length) {
             currentPosition = totalDuration;
@@ -73,8 +73,8 @@ export class AudioControlView extends ItemView {
             cls: 'audio-progress',
             attr: { value: '0', max: '100' }
         });
-        
-        this.progressText = container.createEl('div', { 
+
+        this.progressText = container.createEl('div', {
             text: '00:00 / 00:00',
             cls: 'audio-progress-text'
         });
@@ -95,11 +95,11 @@ export class AudioControlView extends ItemView {
                 if (currentAudio) {
                     currentAudio.pause();
                 }
-                
+
                 // Move to previous sentence
                 docState.currentIndex--;
                 this.plugin.documentStates.set(this.currentDocId!, docState);
-                
+
                 // If we're playing, continue with the previous sentence
                 if (docState.state === PluginState.Playing) {
                     this.plugin.playNextSentence(this.currentDocId!);
@@ -130,7 +130,7 @@ export class AudioControlView extends ItemView {
                     docState.currentIndex = 0;
                     this.plugin.documentStates.set(this.currentDocId!, docState);
                 }
-                
+
                 // If we're starting from idle, start playing from the current index
                 if (docState.state === PluginState.Idle) {
                     this.plugin.playSentencesSequentially(this.currentDocId!);
@@ -159,11 +159,11 @@ export class AudioControlView extends ItemView {
                 if (currentAudio) {
                     currentAudio.pause();
                 }
-                
+
                 // Move to next sentence
                 docState.currentIndex++;
                 this.plugin.documentStates.set(this.currentDocId!, docState);
-                
+
                 // If we're playing, continue with the next sentence
                 if (docState.state === PluginState.Playing) {
                     this.plugin.playNextSentence(this.currentDocId!);
@@ -194,12 +194,12 @@ export class AudioControlView extends ItemView {
             }
 
             const { totalDuration, currentPosition } = this.calculateTotalProgress(docState);
-            
+
             if (this.progressBar) {
                 this.progressBar.max = totalDuration;
                 this.progressBar.value = currentPosition;
             }
-            
+
             this.progressText.setText(`${this.formatTime(currentPosition)} / ${this.formatTime(totalDuration)}`);
         };
 
@@ -215,7 +215,7 @@ export class AudioControlView extends ItemView {
         const playPauseButton = this.containerEl.querySelector('.play-pause') as HTMLButtonElement;
         const nextSentenceButton = this.containerEl.querySelector('.next-sentence') as HTMLButtonElement;
         const prevSentenceButton = this.containerEl.querySelector('.prev-sentence') as HTMLButtonElement;
-        
+
         if (!playPauseButton || !nextSentenceButton || !prevSentenceButton) return;
 
         if (!docState || docState.sentences.length === 0) {
@@ -227,19 +227,19 @@ export class AudioControlView extends ItemView {
         }
 
         // Enable/disable previous sentence button
-        prevSentenceButton.disabled = docState.currentIndex <= 0 || 
-                                     docState.state === PluginState.Generating || 
-                                     docState.isLoading;
+        prevSentenceButton.disabled = docState.currentIndex <= 0 ||
+            docState.state === PluginState.Generating ||
+            docState.isLoading;
 
         // Enable/disable next sentence button
-        nextSentenceButton.disabled = docState.currentIndex >= docState.sentences.length - 1 || 
-                                     docState.state === PluginState.Generating || 
-                                     docState.isLoading;
+        nextSentenceButton.disabled = docState.currentIndex >= docState.sentences.length - 1 ||
+            docState.state === PluginState.Generating ||
+            docState.isLoading;
 
         // Enable/disable play/pause button
-        playPauseButton.disabled = docState.state === PluginState.Generating || 
-                                  (docState.isLoading && docState.state !== PluginState.Playing);
-        
+        playPauseButton.disabled = docState.state === PluginState.Generating ||
+            (docState.isLoading && docState.state !== PluginState.Playing);
+
         this.updatePlayPauseButton();
     }
 
